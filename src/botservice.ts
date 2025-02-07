@@ -3,7 +3,7 @@ import {mmClient, wsClient} from "./mm-client";
 import 'babel-polyfill'
 import 'isomorphic-fetch'
 import {WebSocketMessage} from "@mattermost/client";
-import {ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum} from "openai";
+import {OpenAI} from "openai";
 import {GraphPlugin} from "./plugins/GraphPlugin";
 import {ImagePlugin} from "./plugins/ImagePlugin";
 import {Post} from "@mattermost/types/lib/posts";
@@ -49,9 +49,9 @@ async function onClientMessage(msg: WebSocketMessage<JSONMessageData>, meId: str
         return
     }
 
-    const chatmessages: ChatCompletionRequestMessage[] = [
+    const chatmessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         {
-            role: ChatCompletionRequestMessageRoleEnum.System,
+            role: 'system',
             content: botInstructions
         },
     ]
@@ -61,12 +61,12 @@ async function onClientMessage(msg: WebSocketMessage<JSONMessageData>, meId: str
         matterMostLog.trace({msg: threadPost})
         if (threadPost.user_id === meId) {
             chatmessages.push({
-                role: ChatCompletionRequestMessageRoleEnum.Assistant,
+                role: 'assistant',
                 content: threadPost.props.originalMessage ?? threadPost.message
             })
         } else {
             chatmessages.push({
-                role: ChatCompletionRequestMessageRoleEnum.User,
+                role: 'user',
                 name: await userIdToName(threadPost.user_id),
                 content: threadPost.message
             })
