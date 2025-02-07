@@ -23,7 +23,7 @@ const reasoning_effort: OpenAI.Chat.Completions.ChatCompletionReasoningEffort = 
 log.debug({model, max_tokens, temperature})
 
 const plugins: Map<string, PluginBase<any>> = new Map()
-const functions: object[] = []
+const functions: OpenAI.Chat.Completions.ChatCompletionTool[] = []
 
 /**
  * Registers a plugin as a GPT function. These functions are sent to openAI when the user interacts with chatGPT.
@@ -51,7 +51,7 @@ export function registerChatPlugin(plugin: PluginBase<any>) {
  * @param messages The message thread which should be sent.
  * @param msgData The message data of the last mattermost post representing the newest message in the message thread.
  */
-export async function continueThread(messages: ChatCompletionRequestMessage[], msgData: MessageData): Promise<AiResponse> {
+export async function continueThread(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], msgData: MessageData): Promise<AiResponse> {
     let aiResponse: AiResponse = {
         message: 'Sorry, but it seems I found no valid response.'
     }
@@ -68,20 +68,22 @@ export async function continueThread(messages: ChatCompletionRequestMessage[], m
         log.trace(responseMessage)
         if(responseMessage) {
             // if the function_call is set, we have a plugin call
-            if(responseMessage.function_call && responseMessage.function_call.name) {
-                const pluginName = responseMessage.function_call.name;
+            if(responseMessage.tool_calls) {
+                // we just take the first tool call – TODO: check if there may be more than one tool call per response
+                const function_call = responseMessage.tool_calls[0].function
+                const pluginName = function_call.name
                 log.trace({pluginName})
                 try {
                     const plugin = plugins.get(pluginName);
                     if (plugin){
-                        const pluginArguments = JSON.parse(responseMessage.function_call.arguments ?? '[]');
+                        const pluginArguments = JSON.parse(function_call.arguments ?? '[]');
                         log.trace({plugin, pluginArguments})
                         const pluginResponse = await plugin.runPlugin(pluginArguments, msgData)
                         log.trace({pluginResponse})
 
                         if(pluginResponse.intermediate) {
                             messages.push({
-                                role: ChatCompletionResponseMessageRoleEnum.Function,
+                                role: 'function',
                                 name: pluginName,
                                 content: pluginResponse.message
                             })
@@ -91,7 +93,7 @@ export async function continueThread(messages: ChatCompletionRequestMessage[], m
                     } else {
                         if (!missingPlugins.has(pluginName)){
                             missingPlugins.add(pluginName)
-                            log.debug({ error: 'Missing plugin ' + pluginName, pluginArguments: responseMessage.function_call.arguments})
+                            log.debug({ error: 'Missing plugin ' + pluginName, pluginArguments: function_call.arguments})
                             messages.push({ role: 'system', content: `There is no plugin named '${pluginName}' available. Try without using that plugin.`})
                             continue
                         } else {
@@ -119,9 +121,7 @@ export async function continueThread(messages: ChatCompletionRequestMessage[], m
  * @param messages The message history the response is created for.
  * @param functions Function calls which can be called by the openAI model
  */
-export async function createChatCompletion(
-        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-        functions: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = undefined): Promise<object | undefined> {
+export async function createChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], functions: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = undefined): Promise<OpenAI.Chat.Completions.ChatCompletionMessage | undefined> {
     const chatCompletionOptions: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
         model: model,
         messages: messages,
@@ -149,14 +149,14 @@ export async function createChatCompletion(
  * @param prompt The image description provided to DALL-E.
  */
 export async function createImage(prompt: string): Promise<string | undefined> {
-    const createImageOptions: CreateImageRequest = {
+    const createImageOptions: OpenAI.Images.ImageGenerateParams = {
         prompt,
         n: 1,
         size: '512x512',
         response_format: 'b64_json'
     };
     log.trace({createImageOptions})
-    const image = await openai.createImage(createImageOptions)
+    const image = await openai.images.generate(createImageOptions)
     log.trace({image})
-    return image.data?.data[0]?.b64_json
+    return image.data[0]?.b64_json
 }
