@@ -1,10 +1,7 @@
 import {
-    ChatCompletionFunctions,
-    ChatCompletionRequestMessage,
-    ChatCompletionResponseMessage, ChatCompletionResponseMessageRoleEnum,
-    Configuration, CreateChatCompletionRequest, CreateImageRequest,
-    OpenAIApi
+    OpenAI, ClientOptions
 } from "openai";
+
 import {openAILog as log} from "./logging"
 
 import {PluginBase} from "./plugins/PluginBase";
@@ -14,18 +11,19 @@ const apiKey = process.env['OPENAI_API_KEY'];
 const basePath = process.env['OPENAI_API_BASE'];
 log.trace({apiKey, basePath})
 
-const configuration = new Configuration({ apiKey, basePath })
+const configuration: ClientOptions = { apiKey: apiKey, baseURL: basePath }
 
-const openai = new OpenAIApi(configuration)
+const openai = new OpenAI(configuration)
 
 const model = process.env['OPENAI_MODEL_NAME'] ?? 'gpt-3.5-turbo'
 const max_tokens = Number(process.env['OPENAI_MAX_TOKENS'] ?? 2000)
 const temperature = Number(process.env['OPENAI_TEMPERATURE'] ?? 1)
+const reasoning_effort: OpenAI.Chat.Completions.ChatCompletionReasoningEffort = (process.env['OPENAI_REASONING_EFFORT'] ?? 'medium') as OpenAI.Chat.Completions.ChatCompletionReasoningEffort
 
 log.debug({model, max_tokens, temperature})
 
 const plugins: Map<string, PluginBase<any>> = new Map()
-const functions: ChatCompletionFunctions[] = []
+const functions: object[] = []
 
 /**
  * Registers a plugin as a GPT function. These functions are sent to openAI when the user interacts with chatGPT.
@@ -34,13 +32,16 @@ const functions: ChatCompletionFunctions[] = []
 export function registerChatPlugin(plugin: PluginBase<any>) {
     plugins.set(plugin.key, plugin)
     functions.push({
-        name: plugin.key,
-        description: plugin.description,
-        parameters: {
-            type: 'object',
-            properties: plugin.pluginArguments,
-            required: plugin.requiredArguments
-        }
+        type: "function",
+        function: {
+            name: plugin.key,
+            description: plugin.description,
+            parameters: {
+                type: 'object',
+                properties: plugin.pluginArguments,
+                required: plugin.requiredArguments
+            }
+        },
     })
 }
 
@@ -118,25 +119,29 @@ export async function continueThread(messages: ChatCompletionRequestMessage[], m
  * @param messages The message history the response is created for.
  * @param functions Function calls which can be called by the openAI model
  */
-export async function createChatCompletion(messages: ChatCompletionRequestMessage[], functions: ChatCompletionFunctions[] | undefined = undefined): Promise<ChatCompletionResponseMessage | undefined> {
-    const chatCompletionOptions: CreateChatCompletionRequest = {
+export async function createChatCompletion(
+        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        functions: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = undefined): Promise<object | undefined> {
+    const chatCompletionOptions: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
         model: model,
         messages: messages,
         max_tokens: max_tokens,
         temperature: temperature,
+        reasoning_effort: reasoning_effort,
+        tools: functions,
+        tool_choice: 'none',
     }
     if(functions) {
-        chatCompletionOptions.functions = functions
-        chatCompletionOptions.function_call = 'auto'
+        chatCompletionOptions.tool_choice = 'auto'
     }
 
     log.trace({chatCompletionOptions})
 
-    const chatCompletion = await openai.createChatCompletion(chatCompletionOptions)
+    const chatCompletion = await openai.chat.completions.create(chatCompletionOptions)
 
     log.trace({chatCompletion})
 
-    return chatCompletion.data?.choices?.[0]?.message
+    return chatCompletion.choices?.[0]?.message
 }
 
 /**
