@@ -2,3 +2,5 @@
 /dist/
 /*.crt
 docker-compose.override.yml
+.vscode/
+.env
