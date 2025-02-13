@@ -122,15 +122,26 @@ export async function continueThread(messages: OpenAI.Chat.Completions.ChatCompl
  * @param functions Function calls which can be called by the openAI model
  */
 export async function createChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], functions: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = undefined): Promise<OpenAI.Chat.Completions.ChatCompletionMessage | undefined> {
-    const chatCompletionOptions: OpenAI.Chat.Completions.ChatCompletionCreateParams = {
+    let opts = {
         model: model,
         messages: messages,
-        max_tokens: max_tokens,
-        temperature: temperature,
-        reasoning_effort: reasoning_effort,
         tools: functions,
         tool_choice: 'none',
     }
+
+    if (model.startsWith('gpt-4o') || model.startsWith('chatgpt-4o')) {
+        opts = Object.assign(opts, {
+            max_tokens: max_tokens,
+            temperature: temperature
+        })
+    } else {
+        opts = Object.assign(opts, {
+            reasoning_effort: reasoning_effort
+        })
+    }
+
+    const chatCompletionOptions: OpenAI.Chat.Completions.ChatCompletionCreateParams = opts as OpenAI.Chat.Completions.ChatCompletionCreateParams
+
     if(functions) {
         chatCompletionOptions.tool_choice = 'auto'
     }
