@@ -124,9 +124,7 @@ export async function continueThread(messages: OpenAI.Chat.Completions.ChatCompl
 export async function createChatCompletion(messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], functions: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = undefined): Promise<OpenAI.Chat.Completions.ChatCompletionMessage | undefined> {
     let opts = {
         model: model,
-        messages: messages,
-        tools: functions,
-        tool_choice: 'none',
+        messages: messages
     }
 
     if (model.startsWith('gpt-4o') || model.startsWith('chatgpt-4o')) {
@@ -142,8 +140,9 @@ export async function createChatCompletion(messages: OpenAI.Chat.Completions.Cha
 
     const chatCompletionOptions: OpenAI.Chat.Completions.ChatCompletionCreateParams = opts as OpenAI.Chat.Completions.ChatCompletionCreateParams
 
-    if(functions) {
+    if (functions) {
         chatCompletionOptions.tool_choice = 'auto'
+        chatCompletionOptions.tools = functions
     }
 
     log.trace({chatCompletionOptions})
