@@ -3,7 +3,8 @@
   "version": "2.3.0",
   "private": true,
   "scripts": {
-    "start": "tsx --env-file=.env ./src/botservice.ts"
+    "start": "tsx --env-file=.env ./src/botservice.ts",
+    "start_no_env": "tsx ./src/botservice.ts"
   },
   "dependencies": {
     "@mattermost/client": "^7.10.0",
