@@ -20,9 +20,9 @@ if (!global.FormData) {
 
 const name = process.env['MATTERMOST_BOTNAME'] || '@chatgpt'
 const contextMsgCount = Number(process.env['BOT_CONTEXT_MSG'] ?? 100)
-const additionalBotInstructions = process.env['BOT_INSTRUCTION'] || "You are a helpful assistant. Whenever users asks you for help you will " +
+const additionalBotInstructions = process.env['BOT_INSTRUCTION'] || "You are a helpful assistant. Whenever users ask you for help you will " +
     "provide them with succinct answers. You know the user's name as it is provided within the " +
-    "meta data of the messages."
+    "meta data of the messages. If your answer includes code, please embed it in Markdown code block notation (denoted with \"```\")."
 
 /* List of all registered plugins */
 const plugins: PluginBase<any>[] = [

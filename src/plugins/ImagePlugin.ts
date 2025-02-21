@@ -73,7 +73,7 @@ export class ImagePlugin extends PluginBase<ImagePluginArgs> {
 
     async base64ToFile (b64String: string, channelId: string) {
         const form = new FormData()
-        form.append('channel_id', channelId);
+        //form.append('channel_id', channelId);  // this needs to be moved into the URL (see https://gist.github.com/deseven/dd03b26895232465211ef09f75400d94, but the current client4 implementation doesn't support this)
         form.append('files', Buffer.from(b64String, 'base64'), 'image.png');
         const response = await mmClient.uploadFile(form)
         this.log.trace('Uploaded a file with id', response.file_infos[0].id)
